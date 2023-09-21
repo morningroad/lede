@@ -440,6 +440,10 @@ ath79_setup_interfaces()
 		ucidef_add_switch "switch0" \
 			"0@eth0" "1:lan:1" "2:lan:3" "3:lan:2"
 		;;
+	tplink,tl-wdr8500-v2)
+		ucidef_add_switch "switch0" \
+			"1:lan" "2:lan" "3:lan" "4:lan" "0:wan" "6@eth0"
+		;;
 	tplink,tl-wpa8630-v1|\
 	tplink,tl-wpa8630p-v2-int|\
 	tplink,tl-wpa8630p-v2.0-eu|\

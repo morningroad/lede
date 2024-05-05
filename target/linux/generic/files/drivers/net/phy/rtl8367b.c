@@ -630,7 +630,7 @@ static const struct rtl8367b_initval rtl8367r_vb_initvals_1[] = {
 	{0x133E, 0x000E}, {0x133F, 0x0010},
 };
 
-static const struct rtl8367b_initval rtl8367c_initvals0[] = {
+static const struct rtl8367b_initval rtl8367c_initvals[] = {
 	{0x13c2, 0x0000}, {0x0018, 0x0f00}, {0x0038, 0x0f00}, {0x0058, 0x0f00},
 	{0x0078, 0x0f00}, {0x0098, 0x0f00}, {0x1d15, 0x0a69}, {0x2000, 0x1340},
 	{0x2020, 0x1340}, {0x2040, 0x1340}, {0x2060, 0x1340}, {0x2080, 0x1340},
@@ -755,42 +755,39 @@ static int rtl8367b_write_phy_reg(struct rtl8366_smi *smi,
 static int rtl8367b_init_regs(struct rtl8366_smi *smi)
 {
 	const struct rtl8367b_initval *initvals;
+	u32 chip_num;
 	u32 chip_ver;
 	u32 rlvid;
 	int count;
 	int err;
 
 	REG_WR(smi, RTL8367B_RTL_MAGIC_ID_REG, RTL8367B_RTL_MAGIC_ID_VAL);
+	REG_RD(smi, RTL8367B_CHIP_NUMBER_REG, &chip_num);
 	REG_RD(smi, RTL8367B_CHIP_VER_REG, &chip_ver);
-	rlvid = (chip_ver >> RTL8367B_CHIP_VER_RLVID_SHIFT) &
-		RTL8367B_CHIP_VER_RLVID_MASK;
 
-	if (of_device_is_compatible(smi->parent->of_node,
-				    "realtek,rtl8367s")) {
-		initvals = rtl8367c_initvals0;
-		count = ARRAY_SIZE(rtl8367c_initvals0);
+	if ((chip_ver ==  0x0020 || chip_ver == 0x00A0) && chip_num == 0x6367)  {
+		initvals = rtl8367c_initvals;
+		count = ARRAY_SIZE(rtl8367c_initvals);
 	} else {
+		rlvid = (chip_ver >> RTL8367B_CHIP_VER_RLVID_SHIFT) &
+			RTL8367B_CHIP_VER_RLVID_MASK;
+
 		switch (rlvid) {
 		case 0:
 			initvals = rtl8367r_vb_initvals_0;
 			count = ARRAY_SIZE(rtl8367r_vb_initvals_0);
 			break;
-			
-			case 1:
+		case 1:
 			initvals = rtl8367r_vb_initvals_1;
 			count = ARRAY_SIZE(rtl8367r_vb_initvals_1);
 			break;
-			
-			default:
+		default:
 			dev_err(smi->parent, "unknow rlvid %u\n", rlvid);
 			return -ENODEV;
 		}
 	}
 
 	/* TODO: disable RLTP */
-
-	if(chip_ver == 0x0020)
-		return 0;
 
 	return rtl8367b_write_initvals(smi, initvals, count);
 }
@@ -1694,7 +1691,7 @@ static int rtl8367b_mii_write(struct mii_bus *bus, int addr, int reg, u16 val)
 
 static int rtl8367b_detect(struct rtl8366_smi *smi)
 {
-	const char *chip_name;
+	const char *chip_name = NULL;
 	u32 chip_num;
 	u32 chip_ver;
 	u32 chip_mode;
@@ -1725,28 +1722,27 @@ static int rtl8367b_detect(struct rtl8366_smi *smi)
 		return ret;
 	}
 
-	dev_info(smi->parent,
-		"found chip num:%04x ver:%04x, mode:%04x\n",
-		chip_num, chip_ver, chip_mode);
-
-	/* rtl8367s: known chip num:6367 ver:00a0, mode:00a0 */
-
-	if (of_device_is_compatible(smi->parent->of_node, "realtek,rtl8367s")) {
-		if (chip_ver == 0x00a0)
+	switch (chip_ver) {
+	case 0x0020:
+		if (chip_num == 0x6367)
+			chip_name = "8367RB-VB";
+		break;
+	case 0x00A0:
+		if (chip_num == 0x6367)
 			chip_name = "8367S";
-		else
-			goto unknown_chip;
-	} else {
-		switch (chip_ver) {
-		case 0x1000:
-			chip_name = "8367RB";
-			break;
-		case 0x1010:
-			chip_name = "8367R-VB";
-			break;
-		default:
-			goto unknown_chip;
-		}
+		break;
+	case 0x1000:
+		chip_name = "8367RB";
+		break;
+	case 0x1010:
+		chip_name = "8367R-VB";
+	}
+
+	if (!chip_name) {
+		dev_err(smi->parent,
+			"unknown chip num:%04x ver:%04x, mode:%04x\n",
+			chip_num, chip_ver, chip_mode);
+		return -ENODEV;
 	}
 
 	dev_info(smi->parent, "RTL%s chip found\n", chip_name);

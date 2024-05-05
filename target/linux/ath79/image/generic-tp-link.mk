@@ -670,6 +670,17 @@ define Device/tplink_tl-wpa8630p-v2.1-eu
 endef
 TARGET_DEVICES += tplink_tl-wpa8630p-v2.1-eu
 
+define Device/tplink_tl-wdr8500-v2
+  $(Device/tplink-8mlzma)
+  SOC := qca9563
+  DEVICE_MODEL :=  TL-WDR8500
+  DEVICE_VARIANT := v2
+  DEVICE_PACKAGES := kmod-ath10k-ct ath10k-firmware-qca9984-ct-htt
+  TPLINK_HWID := 0x85000002
+  SUPPORTED_DEVICES += tl-wdr8500-v2
+endef
+TARGET_DEVICES += tplink_tl-wdr8500-v2
+
 define Device/tplink_tl-wr1043nd-v1
   $(Device/tplink-8m)
   SOC := ar9132
